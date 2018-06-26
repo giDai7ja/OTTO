@@ -9,7 +9,6 @@
 #define rolik1 15 //ролик 1
 #define rolik2 16 //ролик 2
 #define alarm 30 //реле авария
-#define timeout_card 70 // время от начала движения ленты до опроса датчиков (роликов) (Число циклов)
 
 #elif defined(ARDUINO_AVR_PRO) // Pro Mini assignments
 
@@ -18,7 +17,6 @@
 #define rolik1 15 //ролик 1
 #define rolik2 16 //ролик 2
 #define alarm 30 //реле авария
-#define timeout_card 70 // время от начала движения ленты до опроса датчиков (роликов) (Число циклов)
 
 #else
 #error Unsupported board selection.
@@ -43,9 +41,12 @@ bool _mkb1C4xP2 = 0;
 bool _mkb1C4xP3 = 0;
 bool _mkb1C4xP4 = 0;
 
+byte enc; // число импульсов энкодера
+byte t_out; // время от начала движения ленты до опроса датчиков (роликов) (Число циклов)
 
 void setup()
 {
+  pinMode(LED_BUILTIN, OUTPUT);
   Wire.begin();
   delay(10);
   _lcd1.init();
@@ -80,13 +81,24 @@ void setup()
 
   int count = 0;
 
-  byte hb = EEPROM.read(0);
-  byte lb = EEPROM.read(1);
+  byte enc = EEPROM.read(0);
+  byte t_out = EEPROM.read(1);
 
   Serial.begin(9600);
   Serial.println("I am ready!");
   _lcd1.setCursor(0, 0);
   _lcd1.print("Ready           ");
+
+  _lcd1.setCursor(0, 1);
+  _lcd1.print("E=");
+  //  _lcd1.setCursor(2, 1);
+  _lcd1.print(enc);
+
+  _lcd1.setCursor(5, 1);
+  _lcd1.print("T=");
+  //  _lcd1.setCursor(7, 1);
+  _lcd1.print(t_out);
+
 }
 
 void loop() {
@@ -107,12 +119,13 @@ void loop() {
   if ( digitalRead(nizhniy) == HIGH ) { //1
 
     digitalWrite(relay1, LOW); //Включение сдува
+    digitalWrite(LED_BUILTIN, HIGH);
     Serial.println("Sduv ON");
 
     bool temp_enc = digitalRead(2);
     bool temp_enc1;
 
-    for ( int i = 0 ; i < 20; i++ ) {
+    for ( int i = 0 ; i < enc ; i++ ) {
       temp_enc = digitalRead(2);
       while (temp_enc == digitalRead(2)) {};
     }
@@ -120,7 +133,7 @@ void loop() {
     int i = 0;
 
     // Первичная проверка карты
-    while ( ( digitalRead(15) == HIGH || digitalRead(16) == HIGH ) && i < timeout_card ) {
+    while ( ( digitalRead(15) == HIGH || digitalRead(16) == HIGH ) && i < t_out ) {
       delay(1);
       i++;
     }
@@ -130,12 +143,12 @@ void loop() {
     Serial.println("Sduv OFF");
     Serial.println(i);
 
-    if ( i >= timeout_card )
+    if ( i >= t_out )
     {
       digitalWrite(alarm, LOW);
       Serial.println("Alarm!!!");
       _lcd1.setCursor(0, 0);
-      _lcd1.print("Error! Press '*'");
+      _lcd1.print("Error! Press [*]");
 
       while ( _mkb1C4xP1 == 0 ) {
         key_scan();
@@ -147,22 +160,13 @@ void loop() {
       _lcd1.print("Ready           ");
 
     }
-
+    digitalWrite(LED_BUILTIN, LOW);
   } //1
 
 } //loop
 
-///для записи уставки
-/*void save() {
-  byte hb = (_menuValueArray_int[1] >> 8) & 0xFF;
-  EEPROM.write(0, hb);
-  byte lb = _menuValueArray_int[1] & 0xFF;
-  EEPROM.write(1, lb);
-  }
-*/
+
 void key_scan () {
-  //Плата:1
-  //Наименование:Обработка Нажатий Клавиатуры
   digitalWrite(4, 0);
   _mkb1C1xP1 = ! (digitalRead(8));
   _mkb1C1xP2 = ! (digitalRead(9));
@@ -187,6 +191,5 @@ void key_scan () {
   _mkb1C4xP3 = ! (digitalRead(10));
   _mkb1C4xP4 = ! (digitalRead(11));
   digitalWrite(7, 1);
-
 }
 
