@@ -4,25 +4,29 @@
 
 #if defined(ARDUINO_AVR_MEGA2560) // MEGA2560 pin assignments
 
+#define encoderA 2 // Вход энкодера A
+#define encoderB 3 // Вход энкодера B
 #define nizhniy 14 // Нижний датчик
 #define relay1 35 // Реле сдува
-#define rolik1 15 //ролик 1
-#define rolik2 16 //ролик 2
-#define alarm 30 //реле авария
+#define rolik1 15 // Ролик 1
+#define rolik2 16 // Ролик 2
+#define alarm 30 // Реле авария
 
 #elif defined(ARDUINO_AVR_PRO) // Pro Mini assignments
 
-#define nizhniy 14 // Нижний датчик
-#define relay1 35 // Реле сдува
-#define rolik1 15 //ролик 1
-#define rolik2 16 //ролик 2
-#define alarm 30 //реле авария
+#define encoderA 10 // Вход энкодера A
+#define encoderB 10 // Вход энкодера B
+#define nizhniy 11 // Нижний датчик
+#define relay1 12 // Реле сдува
+#define rolik1 11 // Ролик 1
+#define rolik2 11 // Ролик 2
+#define alarm 12 // Реле авария
 
 #else
 #error Unsupported board selection.
 #endif
 
-LiquidCrystal_I2C _lcd1(0x27, 16, 2);
+LiquidCrystal_I2C _lcd1(0x27, 16, 2); // Подключаем LCD дисплей
 
 bool _mkb1C1xP1 = 0;
 bool _mkb1C1xP2 = 0;
@@ -41,16 +45,18 @@ bool _mkb1C4xP2 = 0;
 bool _mkb1C4xP3 = 0;
 bool _mkb1C4xP4 = 0;
 
-byte enc; // число импульсов энкодера
-byte t_out; // время от начала движения ленты до опроса датчиков (роликов) (Число циклов)
+byte enc; // Число импульсов энкодера
+byte t_out; // Время от начала движения ленты до опроса датчиков (роликов) (Число циклов)
+byte rotate; // Вращать/не вращать
 
 void setup()
 {
-  pinMode(LED_BUILTIN, OUTPUT);
-  Wire.begin();
-  delay(10);
-  _lcd1.init();
-  _lcd1.backlight();
+  pinMode(LED_BUILTIN, OUTPUT); // Иногда будем мигать светодиодом
+  Wire.begin(); // Инициализация i2c
+  delay(10); // Подумаем о вечном 10ms
+  _lcd1.init(); // Инициализация LCD дисплея
+  _lcd1.backlight(); // Видимо включаем подсветку
+
   pinMode(8, INPUT);
   digitalWrite(8, HIGH);
   pinMode(9, INPUT);
@@ -68,16 +74,16 @@ void setup()
   pinMode(7, OUTPUT);
   digitalWrite(7, HIGH);
 
-  pinMode(2, INPUT); //вход энкодера зеленый
-  pinMode(3, INPUT);  //вход энкодера белый
-  pinMode(nizhniy, INPUT); //сигнал приклеивания карты
-  pinMode(rolik1, INPUT); //ролик 1
-  pinMode(rolik2, INPUT); //ролик 2
+  pinMode(encoderA, INPUT); // Вход энкодера зеленый
+  pinMode(encoderB, INPUT);  // Вход энкодера белый
+  pinMode(nizhniy, INPUT); // Сигнал приклеивания карты
+  pinMode(rolik1, INPUT); // Ролик 1
+  pinMode(rolik2, INPUT); // Ролик 2
 
-  pinMode(relay1, OUTPUT); //реле обдува
-  digitalWrite(relay1, HIGH);
-  pinMode(alarm, OUTPUT); //реле авария
-  digitalWrite(alarm, HIGH);
+  pinMode(relay1, OUTPUT); // Реле сдува
+  digitalWrite(relay1, HIGH); // Сразу выключаем
+  pinMode(alarm, OUTPUT); // Реле авария
+  digitalWrite(alarm, HIGH); // Сразу выключаем
 
   int count = 0;
 
@@ -122,12 +128,12 @@ void loop() {
     digitalWrite(LED_BUILTIN, HIGH);
     Serial.println("Sduv ON");
 
-    bool temp_enc = digitalRead(2);
+    bool temp_enc = digitalRead(encoderA);
     bool temp_enc1;
 
     for ( int i = 0 ; i < enc ; i++ ) {
-      temp_enc = digitalRead(2);
-      while (temp_enc == digitalRead(2)) {};
+      temp_enc = digitalRead(encoderA);
+      while (temp_enc == digitalRead(encoderA)) {};
     }
 
     int i = 0;
@@ -165,7 +171,7 @@ void loop() {
 
 } //loop
 
-
+// row column
 void key_scan () {
   digitalWrite(4, 0);
   _mkb1C1xP1 = ! (digitalRead(8));
