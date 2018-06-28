@@ -4,13 +4,25 @@
 
 #if defined(ARDUINO_AVR_MEGA2560) // MEGA2560 pin assignments
 
-#define encoderA 2 // Вход энкодера A
-#define encoderB 3 // Вход энкодера B
-#define nizhniy 14 // Нижний датчик
-#define relay1 35 // Реле сдува
-#define rolik1 15 // Ролик 1
-#define rolik2 16 // Ролик 2
-#define alarm 30 // Реле авария
+#define encoderA 2  // Вход энкодера A
+#define encoderB 3  // Вход энкодера B
+#define nizhniy 14  // Нижний датчик
+#define relay1 35   // Реле сдува
+#define rolik1 15   // Ролик 1
+#define rolik2 16   // Ролик 2
+#define alarm 30    // Реле авария
+
+// Описание подключения клавиатуры
+#define row1 11     // Строка 1
+#define row2 10     // Строка 2
+#define row3 9      // Строка 3
+#define row4 8      // Строка 4
+
+#define col1 7      // Колонка 1
+#define col2 6      // Колонка 2
+#define col3 5      // Колонка 3
+#define col4 4      // Колонка 4
+
 
 #elif defined(ARDUINO_AVR_PRO) // Pro Mini assignments
 
@@ -22,32 +34,32 @@
 #define rolik2 11 // Ролик 2
 #define alarm 12 // Реле авария
 
+// Описание подключения клавиатуры
+#define row1 2      // Строка 1
+#define row2 3      // Строка 2
+#define row3 4      // Строка 3
+#define row4 5      // Строка 4
+
+#define col1 6      // Колонка 1
+#define col2 7      // Колонка 2
+#define col3 8      // Колонка 3
+#define col4 9      // Колонка 4
+
 #else
 #error Unsupported board selection.
 #endif
 
 LiquidCrystal_I2C _lcd1(0x27, 16, 2); // Подключаем LCD дисплей
 
-bool _mkb1C1xP1 = 0;
-bool _mkb1C1xP2 = 0;
-bool _mkb1C1xP3 = 0;
-bool _mkb1C1xP4 = 0;
-bool _mkb1C2xP1 = 0;
-bool _mkb1C2xP2 = 0;
-bool _mkb1C2xP3 = 0;
-bool _mkb1C2xP4 = 0;
-bool _mkb1C3xP1 = 0;
-bool _mkb1C3xP2 = 0;
-bool _mkb1C3xP3 = 0;
-bool _mkb1C3xP4 = 0;
-bool _mkb1C4xP1 = 0;
-bool _mkb1C4xP2 = 0;
-bool _mkb1C4xP3 = 0;
-bool _mkb1C4xP4 = 0;
-
 byte enc; // Число импульсов энкодера
 byte t_out; // Время от начала движения ленты до опроса датчиков (роликов) (Число циклов)
 byte rotate; // Вращать/не вращать
+
+const int row[] = { row1, row2, row3, row4 };
+const int col[] = { col1, col2, col3, col4 };
+
+int i;
+int count = 0;
 
 void setup()
 {
@@ -57,38 +69,31 @@ void setup()
   _lcd1.init(); // Инициализация LCD дисплея
   _lcd1.backlight(); // Видимо включаем подсветку
 
-  pinMode(8, INPUT);
-  digitalWrite(8, HIGH);
-  pinMode(9, INPUT);
-  digitalWrite(9, HIGH);
-  pinMode(10, INPUT);
-  digitalWrite(10, HIGH);
-  pinMode(11, INPUT);
-  digitalWrite(11, HIGH);
-  pinMode(4, OUTPUT);
-  digitalWrite(4, HIGH);
-  pinMode(5, OUTPUT);
-  digitalWrite(5, HIGH);
-  pinMode(6, OUTPUT);
-  digitalWrite(6, HIGH);
-  pinMode(7, OUTPUT);
-  digitalWrite(7, HIGH);
+  // Настройка клавиатуры
+  for ( i = 0 ; i < 4 ; i++ ) {
+    pinMode(row[i], INPUT_PULLUP);
+    pinMode(col[i], INPUT_PULLUP);
+  }
 
+  // Входы
   pinMode(encoderA, INPUT); // Вход энкодера зеленый
   pinMode(encoderB, INPUT);  // Вход энкодера белый
   pinMode(nizhniy, INPUT); // Сигнал приклеивания карты
   pinMode(rolik1, INPUT); // Ролик 1
   pinMode(rolik2, INPUT); // Ролик 2
 
+  // Выходы
   pinMode(relay1, OUTPUT); // Реле сдува
   digitalWrite(relay1, HIGH); // Сразу выключаем
   pinMode(alarm, OUTPUT); // Реле авария
   digitalWrite(alarm, HIGH); // Сразу выключаем
 
-  int count = 0;
-
-  byte enc = EEPROM.read(0);
-  byte t_out = EEPROM.read(1);
+  enc = EEPROM.read(0);
+  if (enc > 99) enc = 20;
+  t_out = EEPROM.read(1);
+  if (t_out > 99) t_out = 70;
+  rotate = EEPROM.read(2);
+  if (rotate > 1) rotate = false;
 
   Serial.begin(9600);
   Serial.println("I am ready!");
@@ -97,29 +102,108 @@ void setup()
 
   _lcd1.setCursor(0, 1);
   _lcd1.print("E=");
-  //  _lcd1.setCursor(2, 1);
   _lcd1.print(enc);
 
   _lcd1.setCursor(5, 1);
   _lcd1.print("T=");
-  //  _lcd1.setCursor(7, 1);
   _lcd1.print(t_out);
 
+  _lcd1.setCursor(10, 1);
+  _lcd1.print("R");
+  if ( rotate ) _lcd1.print("on");
+  else _lcd1.print("off");
 }
 
 void loop() {
 
-  key_scan();
-  if ( _mkb1C1xP4 == 1 ) {
+  //  key_scan();
+  if ( key(0, 3) ) { // Постановка на паузу
     _lcd1.setCursor(0, 0);
     _lcd1.print("Pause...        ");
     Serial.println("Pause...");
-    while ( _mkb1C1xP3 == 0 ) {
-      key_scan();
-    }
+
+    while ( !key(1, 3) ) {} // Снятие с паузы
     _lcd1.setCursor(0, 0);
     _lcd1.print("Ready           ");
     Serial.println("Ready");
+  }
+
+  if ( key(0, 0) && enc < 99 ) { // Увеличение счётчика энкодера
+    enc++;
+    _lcd1.setCursor(15, 1);
+    _lcd1.print("*");
+    _lcd1.setCursor(0, 1);
+    _lcd1.print("E=");
+    _lcd1.print(enc);
+    while ( key(0, 0) ) {}
+    delay(200);
+  }
+
+  if ( key(1, 0) && enc > 0 ) { // Уменьшение счётчика энкодера
+    enc--;
+    _lcd1.setCursor(15, 1);
+    _lcd1.print("*");
+    _lcd1.setCursor(0, 1);
+    _lcd1.print("E=");
+    _lcd1.print(enc);
+    _lcd1.print(" ");
+    while ( key(1, 0) ) {}
+    delay(200);
+  }
+
+  if ( key(0, 1) && t_out < 99 ) { // Увеличение задержки
+    t_out++;
+    _lcd1.setCursor(15, 1);
+    _lcd1.print("*");
+    _lcd1.setCursor(5, 1);
+    _lcd1.print("T=");
+    _lcd1.print(t_out);
+    while ( key(0, 1) ) {}
+    delay(200);
+  }
+
+  if ( key(1, 1) && t_out > 0 ) { // Уменьшение задержки
+    t_out--;
+    _lcd1.setCursor(15, 1);
+    _lcd1.print("*");
+    _lcd1.setCursor(5, 1);
+    _lcd1.print("T=");
+    _lcd1.print(t_out);
+    _lcd1.print(" ");
+    while ( key(1, 1) ) {}
+    delay(200);
+  }
+
+  if ( key(2, 3) && !rotate ) { // Включение поворота
+    rotate = true;
+    _lcd1.setCursor(15, 1);
+    _lcd1.print("*");
+    _lcd1.setCursor(10, 1);
+    _lcd1.print("Ron ");
+    while ( key(2, 3) ) {}
+    delay(500);
+  }
+
+  if ( key(3, 3) && rotate ) { // Выключение поворота
+    rotate = false;
+    _lcd1.setCursor(15, 1);
+    _lcd1.print("*");
+    _lcd1.setCursor(10, 1);
+    _lcd1.print("Roff");
+    while ( key(3, 3) ) {}
+    delay(500);
+  }
+
+  if ( key(3, 0) ) { // Сохранение настроек
+
+    EEPROM.write(0, enc);
+    EEPROM.write(1, t_out);
+    EEPROM.write(2, rotate);
+
+    _lcd1.setCursor(15, 1);
+    _lcd1.print(" ");
+    while ( key(3, 0) ) {}
+    delay(500);
   }
 
   if ( digitalRead(nizhniy) == HIGH ) { //1
@@ -154,11 +238,9 @@ void loop() {
       digitalWrite(alarm, LOW);
       Serial.println("Alarm!!!");
       _lcd1.setCursor(0, 0);
-      _lcd1.print("Error! Press [*]");
+      _lcd1.print("Error! Press [#]");
 
-      while ( _mkb1C4xP1 == 0 ) {
-        key_scan();
-      }
+      while ( !key(3, 2) ) {}
 
       digitalWrite(alarm, HIGH);
       Serial.println("Alarm OFF");
@@ -171,31 +253,20 @@ void loop() {
 
 } //loop
 
-// row column
-void key_scan () {
-  digitalWrite(4, 0);
-  _mkb1C1xP1 = ! (digitalRead(8));
-  _mkb1C1xP2 = ! (digitalRead(9));
-  _mkb1C1xP3 = ! (digitalRead(10));
-  _mkb1C1xP4 = ! (digitalRead(11));
-  digitalWrite(4, 1);
-  digitalWrite(5, 0);
-  _mkb1C2xP1 = ! (digitalRead(8));
-  _mkb1C2xP2 = ! (digitalRead(9));
-  _mkb1C2xP3 = ! (digitalRead(10));
-  _mkb1C2xP4 = ! (digitalRead(11));
-  digitalWrite(5, 1);
-  digitalWrite(6, 0);
-  _mkb1C3xP1 = ! (digitalRead(8));
-  _mkb1C3xP2 = ! (digitalRead(9));
-  _mkb1C3xP3 = ! (digitalRead(10));
-  _mkb1C3xP4 = ! (digitalRead(11));
-  digitalWrite(6, 1);
-  digitalWrite(7, 0);
-  _mkb1C4xP1 = ! (digitalRead(8));
-  _mkb1C4xP2 = ! (digitalRead(9));
-  _mkb1C4xP3 = ! (digitalRead(10));
-  _mkb1C4xP4 = ! (digitalRead(11));
-  digitalWrite(7, 1);
+
+bool key(int x, int y) {
+  bool pressed;
+
+  pinMode(row[x], OUTPUT);        // Перводим вывод на выход
+  digitalWrite(row[x], LOW);      // Притягиваем к земле
+
+  if ( digitalRead(col[y]) == LOW )
+    pressed = true;
+  else pressed = false;
+
+  digitalWrite(row[x], HIGH);     // Возвращаем как было
+  pinMode(row[x], INPUT_PULLUP);  // Перводим вывод на вход
+
+  return pressed;
 }
 
