@@ -55,12 +55,12 @@
 #error Unsupported board selection.
 #endif
 
-#define r_out 100  // Время от подъёма каретки до начала возврата из повёрнутого положения
+#define r_out 100  // Время от подъёма каретки до начала возврата из повёрнутого положения (ms)
 
 LiquidCrystal_I2C _lcd1(0x27, 16, 2); // Подключаем LCD дисплей
 
 byte enc;     // Число импульсов энкодера
-byte t_out;   // Время от начала движения ленты до опроса датчиков (роликов) (Число циклов)
+byte t_out;   // Время от начала движения ленты до опроса датчиков (роликов) (ms)
 byte rotate;  // Вращать/Не вращать
 
 const int row[] = { row1, row2, row3, row4 }; // Массив строк
@@ -69,6 +69,7 @@ const int col[] = { col1, col2, col3, col4 }; // Массив колонок
 int i;                // Счётчик циклов
 int rstep = 0;        // Отслеживание состояния поворота
 unsigned long r_time; // Таймаут поворота
+unsigned long x_time; // Таймаут роликов
 
 void setup()
 {
@@ -247,18 +248,14 @@ void loop() {
     }
 
     // Первичная проверка карты
-    i = 0;
-    while ( ( digitalRead(15) == HIGH || digitalRead(16) == HIGH ) && i < t_out ) {
-      delay(1);
-      i++;
-      r_off();
-    }
+    x_time = millis() + t_out;
+    while ( millis() < x_time ) r_off();
 
     digitalWrite(relay1, HIGH); // Выключение сдува
     Serial.println("Sduv OFF");
     Serial.println(i);
 
-    if ( i >= t_out )
+    if ( digitalRead(15) == HIGH || digitalRead(16) == HIGH  )
     {
       digitalWrite(alarm, LOW);
       Serial.println("Alarm!!!");
