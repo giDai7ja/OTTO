@@ -31,11 +31,14 @@
 
 #define encoderA 10 // Вход энкодера A
 #define encoderB 10 // Вход энкодера B
+#define verhnij 11  // Верхний датчик
+#define srednij 11  // Средний датчик
 #define nizhniy 11  // Нижний датчик
-#define relay1 12   // Реле сдува
 #define rolik1 11   // Ролик 1
 #define rolik2 11   // Ролик 2
+#define relay1 12   // Реле сдува
 #define alarm 12    // Реле авария
+#define povorot 12  // Реле поворота
 
 // Описание подключения клавиатуры
 #define row1 2      // Строка 1
