@@ -31,11 +31,11 @@
 
 #define encoderA 10 // Вход энкодера A
 #define encoderB 10 // Вход энкодера B
-#define nizhniy 11 // Нижний датчик
-#define relay1 12 // Реле сдува
-#define rolik1 11 // Ролик 1
-#define rolik2 11 // Ролик 2
-#define alarm 12 // Реле авария
+#define nizhniy 11  // Нижний датчик
+#define relay1 12   // Реле сдува
+#define rolik1 11   // Ролик 1
+#define rolik2 11   // Ролик 2
+#define alarm 12    // Реле авария
 
 // Описание подключения клавиатуры
 #define row1 2      // Строка 1
@@ -52,31 +52,33 @@
 #error Unsupported board selection.
 #endif
 
+#define r_out 100  // Время от подъёма каретки до начала возврата из повёрнутого положения
+
 LiquidCrystal_I2C _lcd1(0x27, 16, 2); // Подключаем LCD дисплей
 
-byte enc; // Число импульсов энкодера
-byte t_out; // Время от начала движения ленты до опроса датчиков (роликов) (Число циклов)
-byte rotate; // Вращать/не вращать
+byte enc;     // Число импульсов энкодера
+byte t_out;   // Время от начала движения ленты до опроса датчиков (роликов) (Число циклов)
+byte rotate;  // Вращать/Не вращать
 
-const int row[] = { row1, row2, row3, row4 };
-const int col[] = { col1, col2, col3, col4 };
+const int row[] = { row1, row2, row3, row4 }; // Массив строк
+const int col[] = { col1, col2, col3, col4 }; // Массив колонок
 
-int i;
-int count = 0;
-int rstep = 0;
+int i;                // Счётчик циклов
+int rstep = 0;        // Отслеживание состояния поворота
+unsigned long r_time; // Таймаут поворота
 
 void setup()
 {
   pinMode(LED_BUILTIN, OUTPUT); // Иногда будем мигать светодиодом
-  Wire.begin(); // Инициализация i2c
-  delay(10); // Подумаем о вечном 10ms
-  _lcd1.init(); // Инициализация LCD дисплея
-  _lcd1.backlight(); // Видимо включаем подсветку
+  Wire.begin();                 // Инициализация i2c
+  delay(10);                    // Подумаем о вечном 10ms
+  _lcd1.init();                 // Инициализация LCD дисплея
+  _lcd1.backlight();            // Видимо включаем подсветку
 
   // Настройка клавиатуры
   for ( i = 0 ; i < 4 ; i++ ) {
-    pinMode(row[i], INPUT_PULLUP);
-    pinMode(col[i], INPUT_PULLUP);
+    pinMode(row[i], INPUT_PULLUP); // Все выводы настроены как входы
+    pinMode(col[i], INPUT_PULLUP); // и притянуты к питанию
   }
 
   // Входы
@@ -96,15 +98,15 @@ void setup()
   pinMode(povorot, OUTPUT);    // Реле поворота
   digitalWrite(povorot, HIGH); // Сразу выключаем
 
-  enc = EEPROM.read(0);
+  enc = EEPROM.read(0);        // Считываем настройки из EEPROM
   if (enc > 99) enc = 20;
   t_out = EEPROM.read(1);
   if (t_out > 99) t_out = 70;
   rotate = EEPROM.read(2);
   if (rotate > 1) rotate = false;
 
-  Serial.begin(9600);
-  Serial.println("I am ready!");
+  Serial.begin(9600);             // Настраиваем порт для вывода отладочной информации
+
   _lcd1.setCursor(0, 0);
   _lcd1.print("Ready           ");
 
@@ -119,20 +121,13 @@ void setup()
   _lcd1.setCursor(10, 1);
   if ( rotate ) _lcd1.print("Ron");
   else _lcd1.print("Roff");
+
+  Serial.println("I am ready!");  // Всё готово
 }
 
 void loop() {
-
-  if ( rotate ) {
-    if ( (digitalRead(srednij) == HIGH) && (rstep == 0) ) {
-      rstep = 1;
-    }
-    if ( (digitalRead(verhnij) == HIGH) && (rstep == 1) ) {
-      rstep = 2;
- //     digitalWrite(povorot, LOW); // Включение поворота
-      Serial.println("Povorot ON");
-    }
-  }
+  
+  r_off();
 
   if ( key(0, 3) ) { // Постановка на паузу
     _lcd1.setCursor(0, 0);
@@ -143,6 +138,17 @@ void loop() {
     _lcd1.setCursor(0, 0);
     _lcd1.print("Ready           ");
     Serial.println("Ready");
+  }
+
+  if ( rotate ) {
+    if ( (digitalRead(verhnij) == HIGH) && (rstep == 1) ) {
+      rstep = 2;
+      //           digitalWrite(povorot, LOW); // Включение поворота
+      Serial.println("Povorot ON");
+    }
+    if ( (digitalRead(srednij) == HIGH) && (rstep == 0) ) {
+      rstep = 1;
+    }
   }
 
   if ( key(0, 0) && enc < 99 ) { // Увеличение счётчика энкодера
@@ -231,22 +237,20 @@ void loop() {
     if ( rstep == 2 ) rstep = 3;
 
     bool temp_enc = digitalRead(encoderA);
-    bool temp_enc1;
 
     for ( int i = 0 ; i < enc ; i++ ) {
       temp_enc = digitalRead(encoderA);
-      while (temp_enc == digitalRead(encoderA)) {};
+      while (temp_enc == digitalRead(encoderA)) r_off();
     }
 
-    int i = 0;
-
     // Первичная проверка карты
+    i = 0;
     while ( ( digitalRead(15) == HIGH || digitalRead(16) == HIGH ) && i < t_out ) {
       delay(1);
       i++;
+      r_off();
     }
 
-    //delay(timeout_card); // Должно настраиваться через меню
     digitalWrite(relay1, HIGH); // Выключение сдува
     Serial.println("Sduv OFF");
     Serial.println(i);
@@ -258,7 +262,7 @@ void loop() {
       _lcd1.setCursor(0, 0);
       _lcd1.print("Error! Press [#]");
 
-      while ( !key(3, 2) ) {}
+      while ( !key(3, 2) ) r_off();
 
       digitalWrite(alarm, HIGH);
       Serial.println("Alarm OFF");
@@ -288,9 +292,15 @@ bool key(int x, int y) {
   return pressed;
 }
 
-void ret() {
-  if ( (rstep == 3) && false ) {
-     digitalWrite(povorot, HIGH); // Выключение поворота 
+void r_off() {
+  if ( (rstep == 3) && (digitalRead(verhnij) == HIGH) ) {
+    rstep = 4;
+    r_time = millis() + r_out;
+  }
+  if ( (rstep == 4) && (millis() >= r_time) ) {
+    digitalWrite(povorot, HIGH); // Выключение поворота
+    Serial.println("Povorot OFF");
+    rstep = 0;
   }
 }
 
