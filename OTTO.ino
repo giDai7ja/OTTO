@@ -55,7 +55,7 @@
 #error Unsupported board selection.
 #endif
 
-#define r_out 100  // Время от подъёма каретки до начала возврата из повёрнутого положения (ms)
+#define r_out 20  // Время от подъёма каретки до начала возврата из повёрнутого положения (ms)
 
 LiquidCrystal_I2C _lcd1(0x27, 16, 2); // Подключаем LCD дисплей
 
@@ -103,9 +103,9 @@ void setup()
   digitalWrite(povorot, HIGH); // Сразу выключаем
 
   enc = EEPROM.read(0);        // Считываем настройки из EEPROM
-  if (enc > 99) enc = 20;
+  //  if (enc > 99) enc = 20;
   t_out = EEPROM.read(1);
-  if (t_out > 99) t_out = 70;
+  // if (t_out > 99) t_out = 70;
   rotate = EEPROM.read(2);
   if (rotate > 1) rotate = false;
 
@@ -113,12 +113,12 @@ void setup()
 
   _lcd1.setCursor(0, 0);
   _lcd1.print("Ready           ");
-
-  _lcd1.setCursor(0, 1);
-  _lcd1.print("E=");
-  _lcd1.print(enc);
-
-  _lcd1.setCursor(5, 1);
+  /*
+    _lcd1.setCursor(0, 1);
+    _lcd1.print("E=");
+    _lcd1.print(enc);
+  */
+  _lcd1.setCursor(4, 1);
   _lcd1.print("T=");
   _lcd1.print(t_out);
 
@@ -130,7 +130,7 @@ void setup()
 }
 
 void loop() {
-  
+
   r_off();
 
   if ( key(0, 3) ) { // Постановка на паузу
@@ -147,42 +147,42 @@ void loop() {
   if ( rotate ) {
     if ( (digitalRead(verhnij) == HIGH) && (rstep == 1) ) {
       rstep = 2;
-      //           digitalWrite(povorot, LOW); // Включение поворота
+      digitalWrite(povorot, LOW); // Включение поворота
       Serial.println("Povorot ON");
     }
     if ( (digitalRead(srednij) == HIGH) && (rstep == 0) ) {
       rstep = 1;
     }
   }
+  /*
+    if ( key(0, 0) && enc < 99 ) { // Увеличение счётчика энкодера
+      enc++;
+      _lcd1.setCursor(15, 1);
+      _lcd1.print("*");
+      _lcd1.setCursor(0, 1);
+      _lcd1.print("E=");
+      _lcd1.print(enc);
+      delay(200);
+      while ( key(0, 0) ) {}
+    }
 
-  if ( key(0, 0) && enc < 99 ) { // Увеличение счётчика энкодера
-    enc++;
-    _lcd1.setCursor(15, 1);
-    _lcd1.print("*");
-    _lcd1.setCursor(0, 1);
-    _lcd1.print("E=");
-    _lcd1.print(enc);
-    delay(200);
-    while ( key(0, 0) ) {}
-  }
-
-  if ( key(1, 0) && enc > 0 ) { // Уменьшение счётчика энкодера
-    enc--;
-    _lcd1.setCursor(15, 1);
-    _lcd1.print("*");
-    _lcd1.setCursor(0, 1);
-    _lcd1.print("E=");
-    _lcd1.print(enc);
-    _lcd1.print(" ");
-    delay(200);
-    while ( key(1, 0) ) {}
-  }
-
-  if ( key(0, 1) && t_out < 99 ) { // Увеличение задержки
+    if ( key(1, 0) && enc > 0 ) { // Уменьшение счётчика энкодера
+      enc--;
+      _lcd1.setCursor(15, 1);
+      _lcd1.print("*");
+      _lcd1.setCursor(0, 1);
+      _lcd1.print("E=");
+      _lcd1.print(enc);
+      _lcd1.print(" ");
+      delay(200);
+      while ( key(1, 0) ) {}
+    }
+  */
+  if ( key(0, 1) && t_out < 255 ) { // Увеличение задержки
     t_out++;
     _lcd1.setCursor(15, 1);
     _lcd1.print("*");
-    _lcd1.setCursor(5, 1);
+    _lcd1.setCursor(4, 1);
     _lcd1.print("T=");
     _lcd1.print(t_out);
     delay(200);
@@ -193,7 +193,7 @@ void loop() {
     t_out--;
     _lcd1.setCursor(15, 1);
     _lcd1.print("*");
-    _lcd1.setCursor(5, 1);
+    _lcd1.setCursor(4, 1);
     _lcd1.print("T=");
     _lcd1.print(t_out);
     _lcd1.print(" ");
@@ -240,20 +240,22 @@ void loop() {
     Serial.println("Sduv ON");
     if ( rstep == 2 ) rstep = 3;
 
-    bool temp_enc = digitalRead(encoderA);
+    while ( digitalRead(nizhniy) == HIGH ) r_off();
+    /*
+          bool temp_enc = digitalRead(encoderA);
 
-    for ( int i = 0 ; i < enc ; i++ ) {
-      temp_enc = digitalRead(encoderA);
-      while (temp_enc == digitalRead(encoderA)) r_off();
-    }
-
+        for ( int i = 0 ; i < enc ; i++ ) {
+          temp_enc = digitalRead(encoderA);
+          while (temp_enc == digitalRead(encoderA)) r_off();
+        }
+    */
     // Первичная проверка карты
     x_time = millis() + t_out;
     while ( millis() < x_time ) r_off();
 
     digitalWrite(relay1, HIGH); // Выключение сдува
     Serial.println("Sduv OFF");
-    Serial.println(i);
+    //    Serial.println(i);
 
     if ( digitalRead(15) == HIGH || digitalRead(16) == HIGH  )
     {
