@@ -74,9 +74,16 @@ int i;                // Счётчик циклов
 int rstep = 0;        // Отслеживание состояния поворота
 int sduv_step = 0;    // Шаг приклеивания карты
 int key_step = 0;     // Шаг сканирования клавиатуры
+int r_step = 0;
+int l_step = 0;
 unsigned long r_time; // Таймаут поворота
 unsigned long x_time; // Таймаут роликов
 unsigned long pressed_time = 0; // Таймаут кнопок
+unsigned long start_time = 0; // Таймаут кнопок
+
+unsigned int Rtime = 255; //
+unsigned int Ltime = 255; //
+
 
 void setup()
 {
@@ -137,51 +144,48 @@ void setup()
 }
 
 void loop() {
-
   ScanKey();
   ScanRotate();
   ScanSduv();
-
+  RScan();
+  LScan();
 } //loop
 
 
 // Подпрограмма управления сдувом
-ScanSduv() {
+void ScanSduv() {
 
   switch (sduv_step) {
     case 0:
-
-      break;
-
-      if ( digitalRead(nizhniy) == HIGH  && false) { //1
+      if ( digitalRead(nizhniy) == HIGH ) {
         rstep = 20;
-
         digitalWrite(relay1, LOW); //Включение сдува
         digitalWrite(LED_BUILTIN, HIGH);
         Serial.println("Sduv ON");
-        if ( rstep == 2 ) rstep = 3;
+        sduv_step = 10;
+      }
+      break;
 
-        while ( digitalRead(nizhniy) == HIGH ) {};
-        /*
-              bool temp_enc = digitalRead(encoderA);
+    case 10:
+      if ( digitalRead(nizhniy) != HIGH ) {
+        start_time = millis();
+        x_time = start_time + t_out;
+        sduv_step = 20;
+      }
+      break;
 
-            for ( int i = 0 ; i < enc ; i++ ) {
-              temp_enc = digitalRead(encoderA);
-              while (temp_enc == digitalRead(encoderA)) r_off();
-            }
-        */
-        // Первичная проверка карты
-        x_time = millis() + t_out;
-        while ( millis() < x_time ) {};
-
+    case 20:
+      if ( millis() > x_time ) {
         digitalWrite(relay1, HIGH); // Выключение сдува
         Serial.println("Sduv OFF");
-        //    Serial.println(i);
+        if (Rtime > x_time || Ltime > x_time ) {
 
-        if ( digitalRead(15) == HIGH || digitalRead(16) == HIGH  )
-        {
           digitalWrite(alarm, LOW);
           Serial.println("Alarm!!!");
+          Serial.print("Rtime=");
+          Serial.println(Rtime);
+          Serial.print("Ltime=");
+          Serial.println(Ltime);
           _lcd1.setCursor(0, 0);
           _lcd1.print("Error! Press [#]");
 
@@ -193,20 +197,13 @@ ScanSduv() {
           _lcd1.print("Ready           ");
 
         }
+        sduv_step = 0;
         digitalWrite(LED_BUILTIN, LOW);
-      } //1
-
-  } // switch
-
-
-
-
-
-
-
-
-
-
+        Rtime = 255;
+        Ltime = 255;
+      }
+      break;
+  }
 }
 
 // Подпрограмма вращения
@@ -237,7 +234,7 @@ void ScanRotate() {
 // Подпрограмма сканирования клавиатуры
 void ScanKey() {
 
-  if ( kard_step == 0 && pressed_time < millis() ) {
+  if ( sduv_step == 0 && pressed_time < millis() ) {
 
     switch (key_step) {
       case 0:
@@ -350,7 +347,7 @@ void ScanKey() {
         if ( !key(3, 0) ) key_step = 0;
         break;
     } // switch
-  } // if ( kard_step == 0 )
+  } // if
 }
 
 // Подпрограмма сканирования заданной кнопки
@@ -368,5 +365,33 @@ bool key(int x, int y) {
   pinMode(row[x], INPUT_PULLUP);  // Перводим вывод на вход
 
   return pressed;
+}
+
+void RScan() {
+  switch (r_step) {
+
+    case 0:
+      if ( (sduv_step != 0) && (digitalRead(15) == LOW) ) {
+        Rtime = millis() - start_time;
+        r_step = 10;
+      }
+      break;
+    case 10:
+      break;
+  }
+}
+
+void LScan() {
+  switch (l_step) {
+
+    case 0:
+      if ( (sduv_step != 0) && (digitalRead(16) == LOW) ) {
+        Ltime = millis() - start_time;
+        l_step = 10;
+      }
+      break;
+    case 10:
+      break;
+  }
 }
 
