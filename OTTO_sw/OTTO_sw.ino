@@ -201,6 +201,8 @@ void ScanSduv() {
         digitalWrite(LED_BUILTIN, LOW);
         Rtime = 255;
         Ltime = 255;
+        r_step = 0;
+        l_step = 0;
       }
       break;
   }
