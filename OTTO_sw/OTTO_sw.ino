@@ -123,7 +123,7 @@ void setup()
   rotate = EEPROM.read(2);
   if (rotate > 1) rotate = false;
 
-  Serial.begin(9600);             // Настраиваем порт для вывода отладочной информации
+  Serial.begin(115200);             // Настраиваем порт для вывода отладочной информации
 
   _lcd1.setCursor(0, 0);
   _lcd1.print("Ready           ");
@@ -169,7 +169,7 @@ void ScanSduv() {
     case 10:
       if ( digitalRead(nizhniy) != HIGH ) {
         start_time = millis();
-        x_time = start_time + t_out;
+        x_time = start_time + 255;
         sduv_step = 20;
       }
       break;
@@ -178,17 +178,25 @@ void ScanSduv() {
       if ( millis() > x_time ) {
         digitalWrite(relay1, HIGH); // Выключение сдува
         Serial.println("Sduv OFF");
-        if (Rtime > x_time || Ltime > x_time ) {
+  //      Serial.print("Rtime=");
+  //      Serial.println(Rtime);
+  //      Serial.print("Ltime=");
+  //      Serial.println(Ltime);
+
+        if (Rtime > t_out || Ltime > t_out ) {
 
           digitalWrite(alarm, LOW);
           Serial.println("Alarm!!!");
-          Serial.print("Rtime=");
-          Serial.println(Rtime);
-          Serial.print("Ltime=");
-          Serial.println(Ltime);
+    //      Serial.print("Rtime=");
+   //       Serial.println(Rtime);
+   //       Serial.print("Ltime=");
+   //       Serial.println(Ltime);
           _lcd1.setCursor(0, 0);
-          _lcd1.print("Error! Press [#]");
-
+          _lcd1.print("Error! ");
+          _lcd1.print(Rtime);
+          _lcd1.print("/");
+          _lcd1.print(Ltime);
+         
           while ( !key(3, 2) ) {};
 
           digitalWrite(alarm, HIGH);
@@ -378,6 +386,7 @@ void RScan() {
         r_step = 10;
       }
       break;
+      
     case 10:
       break;
   }
@@ -392,6 +401,7 @@ void LScan() {
         l_step = 10;
       }
       break;
+      
     case 10:
       break;
   }
